@@ -721,6 +721,7 @@ platforms/harmony/pubspec.lock
 platforms/harmony/pubspec_overrides.yaml
 preview/README.md
 preview/assets/app-icon.png
+preview/ios/AppDelegate.swift
 preview/lib/archive_shelf_geometry.dart
 preview/lib/archive_shelf_preview.dart
 preview/lib/glass_material.dart

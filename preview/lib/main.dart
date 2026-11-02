@@ -3,7 +3,11 @@ import 'archive_shelf_preview.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
-void main() => runApp(const WenkuPreview());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NativeGlassSupport.initialize();
+  runApp(const WenkuPreview());
+}
 
 class PreviewRoute<T> extends CupertinoPageRoute<T> {
   PreviewRoute({required super.builder, required this.reduced});
@@ -266,7 +270,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom;
     return CupertinoPageScaffold(child: Stack(children: [
-      Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: PrismaticBackdrop(dark: widget.dark)))),
+      Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: ArchiveBackdrop(dark: widget.dark)))),
       Positioned.fill(child: AnimatedSwitcher(
         duration: motion(context, 320), switchInCurve: Curves.easeOutCubic,
         transitionBuilder: (child, animation) => FadeTransition(opacity: animation,
@@ -493,7 +497,8 @@ class _ArchiveDockState extends State<ArchiveDock> {
         child: Stack(children: [
           AnimatedPositioned(duration: motion(context, 320), curve: const Cubic(.22, 1, .36, 1),
             left: active * lane, width: lane, top: 0, bottom: 0,
-            child: const ReferenceGlass(radius: 27, emphasized: true, child: SizedBox.expand())),
+            child: DecoratedBox(decoration: BoxDecoration(
+              color: ink(context).withValues(alpha: .06), borderRadius: BorderRadius.circular(27)))),
           Row(children: [for (final entry in const [
             (CupertinoIcons.square_pencil, '发现'), (CupertinoIcons.book, '书架'),
             (CupertinoIcons.folder, '本地'), (CupertinoIcons.person_crop_rectangle, '我的'),

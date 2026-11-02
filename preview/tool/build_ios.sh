@@ -11,6 +11,11 @@ for command in flutter xcodebuild python3 zip shasum; do
   command -v "$command" >/dev/null || { echo "Missing command: $command" >&2; exit 1; }
 done
 xcodebuild -version
+PREVIEW_IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-version)"
+python3 - "$PREVIEW_IOS_SDK" <<'PYSDK'
+import sys
+assert int(sys.argv[1].split('.')[0]) >= 26, 'Native Liquid Glass requires the iOS 26 SDK and Xcode 26'
+PYSDK
 flutter --version
 
 mkdir -p "${1:-$PREVIEW_SOURCE/dist}"
@@ -24,6 +29,7 @@ flutter create --empty --platforms=ios --org=dev.quiteqa \
 cp "$PREVIEW_SOURCE/pubspec.yaml" "$PREVIEW_APP/pubspec.yaml"
 cp -R "$PREVIEW_SOURCE/lib/." "$PREVIEW_APP/lib/"
 cp -R "$PREVIEW_SOURCE/assets" "$PREVIEW_APP/assets"
+cp "$PREVIEW_SOURCE/ios/AppDelegate.swift" "$PREVIEW_APP/ios/Runner/AppDelegate.swift"
 # Discard the generated counter-app checks and lint-package include: this
 # preview has its own entry and deliberately only SDK/runtime dependencies.
 rm -rf "$PREVIEW_APP/test"
@@ -61,10 +67,10 @@ if [[ "${PREVIEW_SCREENSHOT_ONLY:-0}" == 1 ]]; then
   PREVIEW_SIMULATOR="$(xcrun simctl list devices available --json | python3 -c '
 import json, sys
 all_devices = json.load(sys.stdin)["devices"]
-phones = [d for runtime, devices in all_devices.items() if "iOS" in runtime
+phones = [d for runtime, devices in all_devices.items() if "iOS-26" in runtime
           for d in devices if d.get("isAvailable") and d["name"].startswith("iPhone")]
 if not phones:
-    raise SystemExit("No iPhone simulator runtime is installed")
+    raise SystemExit("No iOS 26 iPhone simulator runtime is installed")
 phones.sort(key=lambda d: (d.get("state") != "Booted", "Pro" not in d["name"], d["name"]))
 print(phones[0]["udid"])
 ')"
@@ -77,6 +83,17 @@ print(phones[0]["udid"])
   xcrun simctl launch "$PREVIEW_SIMULATOR" "$PREVIEW_BUNDLE_ID"
   sleep 8
   xcrun simctl io "$PREVIEW_SIMULATOR" screenshot "$PREVIEW_OUTPUT/discovery-preview.png"
+  PREVIEW_DATA="$(xcrun simctl get_app_container "$PREVIEW_SIMULATOR" "$PREVIEW_BUNDLE_ID" data)"
+  cp "$PREVIEW_DATA/Library/Caches/native-glass-verification.json" "$PREVIEW_OUTPUT/native-glass-verification.json"
+  python3 - "$PREVIEW_OUTPUT/native-glass-verification.json" <<'PYVERIFY'
+import json, sys
+receipt = json.load(open(sys.argv[1]))
+assert receipt['liquidGlass'] is True, receipt
+assert receipt['effectClass'] == 'UIGlassEffect', receipt
+assert receipt['createdViews'] > 0, receipt
+assert int(receipt['systemVersion'].split('.')[0]) >= 26, receipt
+print('Verified real native glass:', receipt)
+PYVERIFY
   exit 0
 fi
 
@@ -170,6 +187,8 @@ PREVIEW_BUNDLE="$PREVIEW_APP/build/ios/iphoneos/Runner.app"
 [[ -d "$PREVIEW_BUNDLE" ]] || { echo 'Runner.app was not produced' >&2; exit 1; }
 # An IPA must contain a device binary under Payload/, not a simulator build.
 file "$PREVIEW_BUNDLE/Runner"
+nm -u "$PREVIEW_BUNDLE/Runner" > "$PREVIEW_OUTPUT/native-symbols.txt"
+grep -q 'UIGlassEffect' "$PREVIEW_OUTPUT/native-symbols.txt"
 /usr/bin/xcrun vtool -show-build "$PREVIEW_BUNDLE/Runner" | tee "$PREVIEW_OUTPUT/platform.txt"
 grep -Eq 'platform[[:space:]]+IOS$' "$PREVIEW_OUTPUT/platform.txt"
 mkdir -p "$PREVIEW_WORK/package/Payload"

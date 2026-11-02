@@ -1,7 +1,7 @@
 name: wenku8_preview
 description: Wenku8 Apple-style interface and motion preview with original demo content.
 publish_to: none
-version: 0.1.0+1
+version: 0.2.0+2
 environment:
   sdk: '>=3.11.0 <4.0.0'
 dependencies:

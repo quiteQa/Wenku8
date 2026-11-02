@@ -22,7 +22,7 @@ PREVIEW_APP="$PREVIEW_WORK/app"
 flutter create --empty --platforms=ios --org=dev.quiteqa \
   --project-name=wenku8_preview --no-pub "$PREVIEW_APP"
 cp "$PREVIEW_SOURCE/pubspec.yaml" "$PREVIEW_APP/pubspec.yaml"
-cp "$PREVIEW_SOURCE/lib/main.dart" "$PREVIEW_APP/lib/main.dart"
+cp -R "$PREVIEW_SOURCE/lib/." "$PREVIEW_APP/lib/"
 # Discard the generated counter-app checks and lint-package include: this
 # preview has its own entry and deliberately only SDK/runtime dependencies.
 rm -rf "$PREVIEW_APP/test"
@@ -51,7 +51,7 @@ fi
 cd "$PREVIEW_APP"
 flutter pub get
 # Format the staged copy, keeping the submitted source untouched.
-dart format lib/main.dart
+dart format lib
 flutter analyze --fatal-infos
 flutter build ios --release --no-codesign
 

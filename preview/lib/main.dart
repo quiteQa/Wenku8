@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'archive_shelf_preview.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -17,10 +18,10 @@ class PreviewRoute<T> extends CupertinoPageRoute<T> {
 // has no dependency on the incomplete reader snapshot or its native plugins.
 const blue = Color(0xFF0066CC);
 const pageColor = CupertinoDynamicColor.withBrightness(
-  color: Color(0xFFF2F2F7), darkColor: Color(0xFF000000),
+  color: Color(0xFFF4F3EF), darkColor: Color(0xFF191919),
 );
 const panelColor = CupertinoDynamicColor.withBrightness(
-  color: Color(0xFFFFFFFF), darkColor: Color(0xFF1C1C1E),
+  color: Color(0xFFFDFCFA), darkColor: Color(0xFF242424),
 );
 const mutedColor = CupertinoDynamicColor.withBrightness(
   color: Color(0xFF636366), darkColor: Color(0xFFAEAEB2),
@@ -141,7 +142,7 @@ class Panel extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: padding,
     decoration: BoxDecoration(
-      color: resolved(context, panelColor), borderRadius: BorderRadius.circular(20),
+      color: resolved(context, panelColor), borderRadius: BorderRadius.circular(8),
     ),
     child: child,
   );
@@ -159,7 +160,7 @@ class BookCover extends StatelessWidget {
       child: SizedBox(
         width: width, height: width * 1.43,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(3),
           child: CustomPaint(
             painter: CoverArt(book),
             child: Padding(
@@ -230,9 +231,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int tab = 0;
+  int tab = 0, presentation = 0;
   String query = '';
-  bool onlyReading = false;
+  bool onlyReading = false, searching = false;
   void open(DemoBook book, String tag) => Navigator.of(context).push<void>(
     PreviewRoute<void>(reduced: MediaQuery.disableAnimationsOf(context), builder: (_) => DetailPage(
       book: book, tag: tag, isSaved: widget.saved.contains(book.id),
@@ -241,211 +242,241 @@ class _HomePageState extends State<HomePage> {
       onProgress: (page) => widget.onProgress(book.id, page),
     )),
   );
+  void choosePresentation() => showCupertinoModalPopup<void>(
+    context: context, builder: (sheetContext) => CupertinoActionSheet(
+      title: const Text('书库浏览方式'),
+      actions: [for (final entry in const ['立体书架 + 列表', '立体书架 + 宫格', '纯列表', '纯宫格'].indexed)
+        CupertinoActionSheetAction(onPressed: () {
+          setState(() => presentation = entry.$1);
+          Navigator.pop(sheetContext);
+        }, child: Text(entry.$2)),
+      ],
+      cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(sheetContext), child: const Text('取消')),
+    ),
+  );
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom;
-    return CupertinoPageScaffold(
-      child: Stack(children: [
-        Positioned.fill(child: AnimatedSwitcher(
-          duration: motion(context),
-          switchInCurve: Curves.easeOutCubic,
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: SlideTransition(position: Tween<Offset>(
-              begin: const Offset(0, .015), end: Offset.zero,
-            ).animate(animation), child: child),
-          ),
-          child: CustomScrollView(
-            key: ValueKey(tab),
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-            slivers: [SliverSafeArea(
-              bottom: false,
-              sliver: SliverPadding(
-                padding: EdgeInsets.fromLTRB(24, 22, 24, bottom + 118),
-                sliver: SliverToBoxAdapter(child: switch (tab) {
-                  0 => discover(context),
-                  1 => shelf(context),
-                  _ => settings(context),
-                }),
-              ),
-            )],
-          ),
-        )),
-        Positioned(left: 40, right: 40, bottom: bottom + 14,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(32),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: resolved(context, panelColor).withValues(alpha: .88),
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: resolved(context, CupertinoColors.separator).withValues(alpha: .18)),
-                ),
-                padding: const EdgeInsets.all(5),
-                child: Row(children: [
-                  nav(0, CupertinoIcons.compass, '发现'),
-                  nav(1, CupertinoIcons.book, '书架'),
-                  nav(2, CupertinoIcons.person_crop_circle, '我的'),
-                ]),
-              ),
-            ),
-          ),
+    return CupertinoPageScaffold(child: Stack(children: [
+      const Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: ArchiveGrid()))),
+      Positioned.fill(child: AnimatedSwitcher(
+        duration: motion(context, 320), switchInCurve: Curves.easeOutCubic,
+        transitionBuilder: (child, animation) => FadeTransition(opacity: animation,
+          child: SlideTransition(position: Tween<Offset>(begin: const Offset(0, .012), end: Offset.zero).animate(animation), child: child)),
+        child: CustomScrollView(key: ValueKey(tab), physics: const BouncingScrollPhysics(),
+          slivers: [SliverSafeArea(bottom: false, sliver: SliverPadding(
+            padding: EdgeInsets.fromLTRB(0, 4, 0, bottom + 100),
+            sliver: SliverToBoxAdapter(child: switch (tab) {
+              0 => discover(context), 1 => shelf(context),
+              2 => local(context), _ => settings(context),
+            }),
+          ))],
         ),
-      ]),
-    );
+      )),
+      Positioned(left: 44, right: 44, bottom: bottom + 12,
+        child: ArchiveDock(selected: tab, onSelected: (value) => setState(() => tab = value))),
+    ]));
   }
-  Widget nav(int index, IconData icon, String title) => Expanded(
-    child: Semantics(selected: tab == index,
-      child: Press(label: title, onTap: () => setState(() => tab = index),
-        child: AnimatedContainer(
-          duration: motion(context, 280),
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: tab == index ? CupertinoTheme.of(context).primaryColor.withValues(alpha: .1) : const Color(0x00000000),
-            borderRadius: BorderRadius.circular(27),
-          ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 23, color: tab == index ? CupertinoTheme.of(context).primaryColor : muted(context)),
-            const SizedBox(height: 3),
-            Text(title, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-              color: tab == index ? CupertinoTheme.of(context).primaryColor : muted(context))),
-          ]),
-        ),
-      ),
+  Widget heading(String title, String subtitle, {Widget? trailing}) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+    child: Row(children: [
+      if (tab == 0) ...[
+        Container(width: 30, height: 32, decoration: BoxDecoration(color: ink(context), borderRadius: BorderRadius.circular(6)),
+          child: Icon(CupertinoIcons.book_fill, size: 18, color: resolved(context, panelColor))),
+        const SizedBox(width: 10),
+      ],
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(fontSize: 23, height: 1.18, fontWeight: FontWeight.w700, letterSpacing: -.6)),
+        const SizedBox(height: 4),
+        Text(subtitle, style: TextStyle(color: muted(context), fontSize: 9, letterSpacing: 1.05)),
+      ])),
+      if (trailing != null) trailing,
+    ]),
+  );
+  Widget section(String title, String code, {Widget? trailing}) => Padding(
+    padding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [Text(code, style: TextStyle(fontSize: 9, color: muted(context), letterSpacing: 1)),
+          const SizedBox(width: 10), Expanded(child: Container(height: .5, color: muted(context).withValues(alpha: .22))),
+          const SizedBox(width: 5), Container(width: 3, height: 3, color: muted(context)),
+        ]),
+        const SizedBox(height: 8),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+      ])),
+      if (trailing != null) trailing,
+    ]),
+  );
+  Widget collection(List<DemoBook> items, String origin) => Column(children: [
+    if (presentation < 2 && items.isNotEmpty) ArchivePreviewShelf(
+      key: ValueKey('$origin-${items.map((b) => b.id).join('-')}'),
+      books: [for (final book in items) ShelfBook(book.title, book.author, 'WK-${(book.id + 1).toString().padLeft(5, '0')}')],
+      onOpen: (index) => open(items[index], '$origin-archive-${items[index].id}'),
+      coverBuilder: (index, width, selected) => BookCover(items[index], width: width,
+        tag: selected ? '$origin-archive-${items[index].id}' : null),
     ),
-  );
-  Widget heading(String title, String subtitle) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(subtitle, style: TextStyle(color: muted(context), fontSize: 13, letterSpacing: .8)),
-      const SizedBox(height: 7),
-      Text(title, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: -.9)),
-      const SizedBox(height: 24),
-    ],
-  );
+    if (presentation == 1 || presentation == 3)
+      Padding(padding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final width = (constraints.maxWidth - 32) / 3;
+          return Wrap(spacing: 16, runSpacing: 20, children: [for (final book in items)
+            SizedBox(width: width, child: Press(onTap: () => open(book, '$origin-grid-${book.id}'),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                BookCover(book, width: width, tag: '$origin-grid-${book.id}'),
+                const SizedBox(height: 9),
+                Text(book.title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(book.author, style: TextStyle(fontSize: 11, color: muted(context))),
+              ]))),
+          ]);
+        })),
+    if (presentation == 0 || presentation == 2)
+      Padding(padding: const EdgeInsets.fromLTRB(24, 18, 24, 0), child: Column(children: [
+        for (final book in items) Press(onTap: () => open(book, '$origin-list-${book.id}'),
+          child: Container(padding: const EdgeInsets.symmetric(vertical: 15),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(width: .5, color: muted(context).withValues(alpha: .18)))),
+            child: Row(children: [
+              BookCover(book, width: 52, tag: '$origin-list-${book.id}'),
+              const SizedBox(width: 16),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(book.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6), Text('${book.author} · ${book.genre}', style: TextStyle(fontSize: 12, color: muted(context))),
+                const SizedBox(height: 7), Text('WK-${(book.id + 1).toString().padLeft(5, '0')}',
+                  style: TextStyle(fontSize: 9, letterSpacing: .8, color: muted(context))),
+              ])),
+              Icon(CupertinoIcons.arrow_up_right, size: 17, color: ink(context)),
+            ]),
+          )),
+      ])),
+    if (items.isEmpty) Padding(padding: const EdgeInsets.all(32),
+      child: Text('这里还没有档案', style: TextStyle(fontSize: 14, color: muted(context)))),
+    const SizedBox(height: 32),
+    Text('已经到底了', style: TextStyle(fontSize: 12, color: muted(context))),
+    const SizedBox(height: 18),
+  ]);
   Widget discover(BuildContext context) {
     final results = books.where((b) => '${b.title}${b.author}${b.genre}'.contains(query)).toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      heading('发现好故事', 'WENKU · 阅读此刻'),
-      CupertinoSearchTextField(
-        placeholder: '搜索演示书籍、作者',
-        onChanged: (value) => setState(() => query = value.trim()),
-        style: TextStyle(color: ink(context), fontSize: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      const SizedBox(height: 24),
-      if (query.isEmpty) ...[
-        Press(onTap: () => open(books[0], 'featured-0'),
-          label: '本周精选，风经过的地方',
-          child: Panel(child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('本周精选', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoTheme.of(context).primaryColor)),
-              const SizedBox(height: 14),
-              const Text('让阅读\n慢下来。', style: TextStyle(fontSize: 27, height: 1.25, fontWeight: FontWeight.w700, letterSpacing: -.7)),
-              const SizedBox(height: 12),
-              Text('在故事里，\n找到自己的节奏。', style: TextStyle(fontSize: 13, height: 1.6, color: muted(context))),
-              const SizedBox(height: 16),
-              Text('探索故事  →', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: CupertinoTheme.of(context).primaryColor)),
-            ])),
-            const SizedBox(width: 12),
-            BookCover(books[0], width: 112, tag: 'featured-0'),
-          ])),
-        ),
-        const SizedBox(height: 30),
-      ],
-      Text(query.isEmpty ? '为你精选' : '搜索结果',
-        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -.4)),
-      const SizedBox(height: 7),
-      Text(query.isEmpty ? '下一段旅程，从翻开一页开始' : '找到 ${results.length} 本演示书籍',
-        style: TextStyle(color: muted(context), fontSize: 14)),
-      const SizedBox(height: 20),
-      if (results.isEmpty) Panel(child: Center(child: Text('没有匹配的演示书籍', style: TextStyle(color: muted(context)))))
-      else LayoutBuilder(builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 600 ? 4 : 2;
-        final width = (constraints.maxWidth - (columns - 1) * 20) / columns;
-        return Wrap(spacing: 20, runSpacing: 24, children: [for (final book in results)
-          SizedBox(width: width, child: Press(
-            label: '查看${book.title}', onTap: () => open(book, 'discover-${book.id}'),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              BookCover(book, width: width, tag: 'discover-${book.id}'),
-              const SizedBox(height: 11),
-              Text(book.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Text('${book.author} · ${book.genre}', style: TextStyle(fontSize: 12, color: muted(context))),
-            ]),
-          )),
-        ]);
-      }),
-      const SizedBox(height: 28),
-      previewNote(context),
+      heading('轻小说文库', 'WENKU8 / READING ARCHIVE', trailing: CupertinoButton(
+        padding: const EdgeInsets.all(12), onPressed: () => setState(() {
+          searching = !searching; if (!searching) query = '';
+        }), child: Icon(searching ? CupertinoIcons.xmark : CupertinoIcons.search, color: ink(context), size: 21))),
+      if (searching) Padding(padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+        child: CupertinoSearchTextField(placeholder: '搜索演示书籍、作者', autofocus: true,
+          onChanged: (value) => setState(() => query = value.trim()),
+          style: TextStyle(color: ink(context), fontSize: 15),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), borderRadius: BorderRadius.circular(22))),
+      section(query.isEmpty ? '最近更新' : '搜索结果', '01 / CATALOG',
+        trailing: CupertinoButton(onPressed: choosePresentation,
+          child: Icon(CupertinoIcons.line_horizontal_3_decrease, color: ink(context), size: 20))),
+      collection(results, 'discovery'),
     ]);
   }
   Widget shelf(BuildContext context) {
     final items = books.where((b) => widget.saved.contains(b.id) &&
       (!onlyReading || widget.progress.containsKey(b.id))).toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      heading('我的书架', 'LIBRARY · 留给喜欢的故事'),
-      CupertinoSlidingSegmentedControl<bool>(
-        groupValue: onlyReading,
-        children: const {false: Padding(padding: EdgeInsets.symmetric(horizontal: 22), child: Text('全部')), true: Text('在读')},
-        onValueChanged: (value) { if (value != null) setState(() => onlyReading = value); },
-      ),
-      const SizedBox(height: 24),
-      if (items.isEmpty) Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Icon(CupertinoIcons.book, size: 32), const SizedBox(height: 16),
-        Text(onlyReading ? '还没有开始阅读' : '把喜欢的故事放在这里', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Text('前往发现页，打开书籍详情即可加入书架。', style: TextStyle(fontSize: 14, height: 1.5, color: muted(context))),
-      ])),
-      for (final book in items) ...[
-        Press(onTap: () => open(book, 'shelf-${book.id}'),
-          child: Panel(child: Row(children: [
-            BookCover(book, width: 78, tag: 'shelf-${book.id}'),
-            const SizedBox(width: 18),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(book.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 7),
-              Text(book.author, style: TextStyle(fontSize: 13, color: muted(context))),
-              const SizedBox(height: 18),
-              Text(widget.progress.containsKey(book.id) ? '读到第 ${widget.progress[book.id]! + 1} 章' : '尚未开始 · 3 章演示',
-                style: TextStyle(fontSize: 12, color: CupertinoTheme.of(context).primaryColor)),
-            ])),
-            Icon(CupertinoIcons.chevron_right, size: 15, color: muted(context)),
-          ])),
-        ), const SizedBox(height: 14),
-      ],
-      const SizedBox(height: 14), previewNote(context),
+      heading('书架', '02 / PERSONAL ARCHIVE', trailing: CupertinoButton(onPressed: choosePresentation,
+        child: Icon(CupertinoIcons.line_horizontal_3_decrease, color: ink(context), size: 20))),
+      Padding(padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+        child: CupertinoSlidingSegmentedControl<bool>(groupValue: onlyReading,
+          children: const {false: Padding(padding: EdgeInsets.symmetric(horizontal: 24), child: Text('全部')), true: Text('在读')},
+          onValueChanged: (value) { if (value != null) setState(() => onlyReading = value); })),
+      section('我的收藏', 'SHELF / ${items.length.toString().padLeft(2, '0')}'),
+      collection(items, 'personal'),
     ]);
   }
+  Widget local(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    heading('本地', '03 / LOCAL ARCHIVE'),
+    section('本地书库', 'LOCAL / DEMO'),
+    Padding(padding: const EdgeInsets.fromLTRB(24, 24, 24, 0), child: Panel(child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [Icon(CupertinoIcons.folder, color: ink(context)), const SizedBox(width: 12),
+          const Text('演示本地档案', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600))]),
+        const SizedBox(height: 14),
+        Text('保留原作独立的本地书库入口。这个预览使用演示档案，不提供实际文件导入。',
+          style: TextStyle(fontSize: 13, height: 1.6, color: muted(context))),
+      ]))),
+    collection([books[3]], 'local'),
+  ]);
   Widget settings(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    heading('阅读，随你', 'PERSONAL · 你的阅读空间'),
-    Panel(child: Row(children: [
-      Container(width: 54, height: 54,
-        decoration: BoxDecoration(color: CupertinoTheme.of(context).primaryColor.withValues(alpha: .1), borderRadius: BorderRadius.circular(18)),
-        child: Icon(CupertinoIcons.book_fill, color: CupertinoTheme.of(context).primaryColor, size: 26)),
-      const SizedBox(width: 16),
-      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('文库 · 界面预览', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-        SizedBox(height: 5), Text('让故事成为日常', style: TextStyle(fontSize: 13)),
-      ])),
-    ])),
-    const SizedBox(height: 28),
-    const Text('外观与体验', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-    const SizedBox(height: 16),
-    Panel(child: Column(children: [
+    heading('我的', '04 / PERSONAL PROFILE'),
+    section('外观与体验', '01 / APPEARANCE'),
+    Padding(padding: const EdgeInsets.fromLTRB(24, 20, 24, 0), child: Panel(child: Column(children: [
       preference(context, CupertinoIcons.moon, '深色外观', widget.dark, widget.onDark),
       const SizedBox(height: 20),
       preference(context, CupertinoIcons.wind, '减少动态效果', widget.reduceMotion, widget.onMotion),
-    ])),
-    const SizedBox(height: 24),
-    Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('关于这个预览', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 12),
-      Text('展示发现、搜索、书架、详情、翻页和阅读设置。书籍、封面及正文均为原创演示内容。\n\n书架和阅读位置仅在本次运行内保存；不连接在线书库，不提供登录、导入、同步与听书功能。',
-        style: TextStyle(fontSize: 14, height: 1.6, color: muted(context))),
-    ])),
+    ]))),
+    section('关于这个预览', '02 / ABOUT'),
+    Padding(padding: const EdgeInsets.fromLTRB(24, 20, 24, 0), child: Panel(child: Text(
+      '沿用原作的档案排版、立体抽取书架、奶白色纸张和四个导航入口。采用 Cupertino 控件、模糊玻璃、弹簧吸附和手势返回实现 Apple 风格的反馈与过渡。\\n\\n全部书籍和正文为原创演示内容；书架及位置仅在本次运行内保留，不提供在线书库、导入、同步和听书。',
+      style: TextStyle(fontSize: 14, height: 1.7, color: muted(context))))),
   ]);
+}
+
+class ArchiveGrid extends CustomPainter {
+  const ArchiveGrid();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = const Color(0x0B8A806B)..strokeWidth = .5;
+    for (var x = 24.0; x < size.width; x += 48) {
+      canvas.drawLine(Offset(x, 48), Offset(x, 290), paint);
+    }
+    for (var y = 50.0; y < 290; y += 48) {
+      canvas.drawLine(Offset(24, y), Offset(size.width - 24, y), paint);
+    }
+  }
+  @override
+  bool shouldRepaint(ArchiveGrid oldDelegate) => false;
+}
+class ArchiveDock extends StatefulWidget {
+  const ArchiveDock({super.key, required this.selected, required this.onSelected});
+  final int selected;
+  final ValueChanged<int> onSelected;
+  @override
+  State<ArchiveDock> createState() => _ArchiveDockState();
+}
+class _ArchiveDockState extends State<ArchiveDock> {
+  int? hovered;
+  int get active => hovered ?? widget.selected;
+  @override
+  Widget build(BuildContext context) => ClipRRect(borderRadius: BorderRadius.circular(32),
+    child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+      child: Container(padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(color: resolved(context, panelColor).withValues(alpha: .86),
+          borderRadius: BorderRadius.circular(32), border: Border.all(color: const Color(0x30FFFFFF), width: .7)),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final lane = constraints.maxWidth / 4;
+          return GestureDetector(
+            onHorizontalDragStart: (event) => setState(() => hovered = (event.localPosition.dx / lane).floor().clamp(0, 3)),
+            onHorizontalDragUpdate: (event) => setState(() => hovered = (event.localPosition.dx / lane).floor().clamp(0, 3)),
+            onHorizontalDragCancel: () => setState(() => hovered = null),
+            onHorizontalDragEnd: (_) { widget.onSelected(active); setState(() => hovered = null); },
+            child: Stack(children: [
+              AnimatedPositioned(duration: motion(context, 280), curve: const Cubic(.22, 1, .36, 1),
+                left: active * lane, width: lane, top: 0, bottom: 0,
+                child: DecoratedBox(decoration: BoxDecoration(
+                  color: CupertinoTheme.of(context).primaryColor.withValues(alpha: .07), borderRadius: BorderRadius.circular(27)))),
+              Row(children: [for (final entry in const [
+                (CupertinoIcons.house, '发现'), (CupertinoIcons.book, '书架'),
+                (CupertinoIcons.folder, '本地'), (CupertinoIcons.person_crop_circle, '我的'),
+              ].indexed) Expanded(child: Semantics(selected: widget.selected == entry.$1,
+                child: Press(onTap: () => widget.onSelected(entry.$1), child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8), child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(entry.$2.$1, size: 21, color: active == entry.$1 ? CupertinoTheme.of(context).primaryColor : muted(context)),
+                    const SizedBox(height: 3),
+                    Text(entry.$2.$2, style: TextStyle(fontSize: 10, color: active == entry.$1 ? CupertinoTheme.of(context).primaryColor : muted(context))),
+                    const SizedBox(height: 4),
+                    Container(width: 12, height: 1, color: active == entry.$1 ? ink(context) : const Color(0x00000000)),
+                  ])),
+                ))),
+              ]),
+            ]),
+          );
+        }),
+      ),
+    ),
+  );
 }
 
 Widget preference(BuildContext context, IconData icon, String title,

@@ -720,6 +720,8 @@ platforms/harmony/harmony_gallery_save_button.dart
 platforms/harmony/pubspec.lock
 platforms/harmony/pubspec_overrides.yaml
 preview/README.md
+preview/lib/archive_shelf_geometry.dart
+preview/lib/archive_shelf_preview.dart
 preview/lib/main.dart
 preview/pubspec.yaml
 preview/tool/build_ios.sh

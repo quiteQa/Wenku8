@@ -42,10 +42,10 @@ export 'app_haptics.dart';
 export 'glass_controls.dart';
 export 'control_material_scope.dart';
 
-const ink = Color(0xFF1C1C1E);
-const accent = Color(0xFF007AFF);
+const ink = Color(0xFF181818);
+const accent = Color(0xFF202020);
 const canvas = ArchiveDesign.background;
-const hairline = Color(0xFFD1D1D6);
+const hairline = Color(0xFFD8DBD5);
 
 /// Live appearance values are shared by controls, navigation and scroll edges.
 class GlassAppearance extends InheritedWidget {
@@ -109,11 +109,11 @@ ThemeData novelTheme(
     seedColor: accent,
     brightness: brightness,
     dynamicSchemeVariant: DynamicSchemeVariant.monochrome,
-    primary: dark ? const Color(0xFF0A84FF) : const Color(0xFF0066CC),
+    primary: dark ? Colors.white : ink,
     onPrimary: dark ? ink : Colors.white,
     surface: dark ? ArchiveDesign.darkSurface : ArchiveDesign.surface,
     onSurface: dark ? ArchiveDesign.darkInk : ink,
-    onSurfaceVariant: dark ? ArchiveDesign.darkMuted : const Color(0xFF636366),
+    onSurfaceVariant: dark ? ArchiveDesign.darkMuted : const Color(0xFF646B62),
   );
   late final classicScheme = dark
       ? baseScheme.copyWith(
@@ -1408,6 +1408,7 @@ class _ContentPanelState extends State<ContentPanel> {
         color: widget.backgroundColor ?? Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(widget.radius),
+          side: BorderSide(color: Theme.of(context).dividerColor, width: .7),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

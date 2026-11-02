@@ -409,7 +409,7 @@ class _HomePageState extends State<HomePage> {
     ]))),
     section('关于这个预览', '02 / ABOUT'),
     Padding(padding: const EdgeInsets.fromLTRB(24, 20, 24, 0), child: Panel(child: Text(
-      '沿用原作的档案排版、立体抽取书架、奶白色纸张和四个导航入口。采用 Cupertino 控件、模糊玻璃、弹簧吸附和手势返回实现 Apple 风格的反馈与过渡。\\n\\n全部书籍和正文为原创演示内容；书架及位置仅在本次运行内保留，不提供在线书库、导入、同步和听书。',
+      '沿用原作的档案排版、立体抽取书架、奶白色纸张和四个导航入口。采用 Cupertino 控件、模糊玻璃、弹簧吸附和手势返回实现 Apple 风格的反馈与过渡。\n\n全部书籍和正文为原创演示内容；书架及位置仅在本次运行内保留，不提供在线书库、导入、同步和听书。',
       style: TextStyle(fontSize: 14, height: 1.7, color: muted(context))))),
   ]);
 }

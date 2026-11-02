@@ -53,6 +53,67 @@ flutter pub get
 # Format the staged copy, keeping the submitted source untouched.
 dart format lib
 flutter analyze --fatal-infos
+# Exercise the adapted render objects and the real preview navigation before
+# creating an installable artifact. These checks exist only in the temp host.
+mkdir -p test
+cat > test/preview_test.dart <<'DART'
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:wenku8_preview/main.dart';
+import 'package:wenku8_preview/archive_shelf_preview.dart';
+
+void main() {
+  testWidgets('archive shelf and all four navigation destinations render', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const WenkuPreview());
+    await tester.pumpAndSettle();
+    expect(find.text('轻小说文库'), findsOneWidget);
+    expect(find.byType(ArchivePreviewShelf), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    final shelf = find.descendant(of: find.byType(ArchivePreviewShelf), matching: find.byType(Scrollable));
+    await tester.drag(shelf.first, const Offset(-100, 0));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    for (final label in ['书架', '本地', '我的']) {
+      await tester.tap(find.text(label).last);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+    // Both appearance changes preserve layout and reduced motion uses a flat shelf.
+    await tester.tap(find.byType(CupertinoSwitch).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(CupertinoSwitch).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发现').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(PageView), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('list view opens the same book detail and chapter reader', (tester) async {
+    await tester.pumpWidget(const WenkuPreview());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(CupertinoIcons.line_horizontal_3_decrease).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('纯列表'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ArchivePreviewShelf), findsNothing);
+    await tester.tap(find.text('风经过的地方').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(DetailPage), findsOneWidget);
+    await tester.tap(find.text('开始阅读'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ReaderPage), findsOneWidget);
+    await tester.tap(find.byIcon(CupertinoIcons.chevron_right).last);
+    await tester.pumpAndSettle();
+    expect(find.text('第 2 / 3 章'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}
+DART
+flutter test test/preview_test.dart
 flutter build ios --release --no-codesign
 
 PREVIEW_BUNDLE="$PREVIEW_APP/build/ios/iphoneos/Runner.app"

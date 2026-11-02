@@ -5,7 +5,6 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'archive_shelf_geometry.dart';
 

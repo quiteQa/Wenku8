@@ -23,6 +23,14 @@ flutter create --empty --platforms=ios --org=dev.quiteqa \
   --project-name=wenku8_preview --no-pub "$PREVIEW_APP"
 cp "$PREVIEW_SOURCE/pubspec.yaml" "$PREVIEW_APP/pubspec.yaml"
 cp "$PREVIEW_SOURCE/lib/main.dart" "$PREVIEW_APP/lib/main.dart"
+# Discard the generated counter-app checks and lint-package include: this
+# preview has its own entry and deliberately only SDK/runtime dependencies.
+rm -rf "$PREVIEW_APP/test"
+cat > "$PREVIEW_APP/analysis_options.yaml" <<'YAML'
+analyzer:
+  exclude:
+    - build/**
+YAML
 /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName 文库预览' "$PREVIEW_APP/ios/Runner/Info.plist"
 # Keep the repository's existing branding when it is available.
 PREVIEW_ICON="$PREVIEW_SOURCE/../assets/branding/app-icon.png"

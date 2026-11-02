@@ -1,7 +1,7 @@
 name: wenku8_preview
 description: Wenku8 Apple-style interface and motion preview with original demo content.
 publish_to: none
-version: 0.2.0+2
+version: 0.3.0+3
 environment:
   sdk: '>=3.11.0 <4.0.0'
 dependencies:
@@ -15,3 +15,5 @@ dev_dependencies:
     sdk: flutter
 flutter:
   uses-material-design: false
+  assets:
+    - assets/app-icon.png

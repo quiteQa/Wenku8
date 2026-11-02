@@ -7,6 +7,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'archive_shelf_geometry.dart';
+import 'glass_material.dart';
 
 abstract final class ShelfInk {
   static const milk = Color(0xFFFEFDF8);
@@ -163,26 +164,33 @@ class _ArchivePreviewShelfState extends State<ArchivePreviewShelf> {
           );
         }),
       )),
-      Padding(padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Row(children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.books[active].title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text('${widget.books[active].author} · 演示档案', style: const TextStyle(fontSize: 13)),
-          ])),
-          CupertinoButton(onPressed: () => widget.onOpen(active),
-            child: Icon(CupertinoIcons.arrow_up_right, color: ink, size: 22)),
-        ]),
-      ),
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-        CupertinoButton(onPressed: () => centre(pose.logicalFocus.round() - 1),
-          child: Icon(CupertinoIcons.chevron_left, color: ink, size: 14)),
-        Text('${(active + 1).toString().padLeft(2, '0')} / ${widget.books.length.toString().padLeft(2, '0')}',
-          style: const TextStyle(fontSize: 10, letterSpacing: 1)),
-        CupertinoButton(onPressed: () => centre(pose.logicalFocus.round() + 1),
-          child: Icon(CupertinoIcons.chevron_right, color: ink, size: 14)),
-        const SizedBox(width: 12),
-      ]),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: ReferenceGlass(radius: 23, padding: const EdgeInsets.fromLTRB(16, 11, 10, 11),
+          child: Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.books[active].title, style: TextStyle(fontSize: 20, height: 1.15, color: ink, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 5),
+              Text('${widget.books[active].author} · 演示档案', style: TextStyle(fontSize: 13, color: ink.withValues(alpha: .65))),
+            ])),
+            GestureDetector(onTap: () => widget.onOpen(active),
+              child: Semantics(button: true, label: '打开当前书籍',
+                child: ReferenceGlass(radius: 23, child: SizedBox(width: 44, height: 44,
+                  child: Icon(CupertinoIcons.arrow_up_right, color: ink, size: 23))))),
+          ]),
+        )),
+      Padding(padding: const EdgeInsets.only(right: 20, top: 12),
+        child: Align(alignment: Alignment.centerRight,
+          child: ReferenceGlass(radius: 23, child: Row(mainAxisSize: MainAxisSize.min, children: [
+            CupertinoButton(padding: EdgeInsets.zero,
+              onPressed: widget.books.length > 1 ? () => centre(pose.logicalFocus.round() - 1) : null,
+              child: Icon(CupertinoIcons.chevron_left, color: ink, size: 14)),
+            Text('${(active + 1).toString().padLeft(2, '0')} / ${widget.books.length.toString().padLeft(2, '0')}',
+              style: TextStyle(fontSize: 11, letterSpacing: 1, color: ink)),
+            CupertinoButton(padding: EdgeInsets.zero,
+              onPressed: widget.books.length > 1 ? () => centre(pose.logicalFocus.round() + 1) : null,
+              child: Icon(CupertinoIcons.chevron_right, color: ink, size: 14)),
+          ])))),
+
     ]);
   }
 }

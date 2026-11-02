@@ -23,6 +23,7 @@ flutter create --empty --platforms=ios --org=dev.quiteqa \
   --project-name=wenku8_preview --no-pub "$PREVIEW_APP"
 cp "$PREVIEW_SOURCE/pubspec.yaml" "$PREVIEW_APP/pubspec.yaml"
 cp -R "$PREVIEW_SOURCE/lib/." "$PREVIEW_APP/lib/"
+cp -R "$PREVIEW_SOURCE/assets" "$PREVIEW_APP/assets"
 # Discard the generated counter-app checks and lint-package include: this
 # preview has its own entry and deliberately only SDK/runtime dependencies.
 rm -rf "$PREVIEW_APP/test"
@@ -92,10 +93,21 @@ void main() {
     expect(find.byType(PageView), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('reference search and region toolbar use the displayed dataset', (tester) async {
+    await tester.pumpWidget(const WenkuPreview());
+    await tester.pumpAndSettle();
+    expect(find.text('4 本'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('reference-search')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText), '夜航');
+    await tester.pumpAndSettle();
+    expect(find.text('1 本'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('list view opens the same book detail and chapter reader', (tester) async {
     await tester.pumpWidget(const WenkuPreview());
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(CupertinoIcons.line_horizontal_3_decrease).first);
+    await tester.tap(find.byKey(const ValueKey('view-options')).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('纯列表'));
     await tester.pumpAndSettle();
@@ -132,3 +144,27 @@ cd "$PREVIEW_OUTPUT"
 shasum -a 256 Wenku8-Preview-unsigned.ipa > SHA256SUMS.txt
 printf '%s\n' 'Unsigned UI preview. Sign with your own Apple identity before installing.' > INSTALL.txt
 printf '%s\n' "IPA: $PREVIEW_OUTPUT/Wenku8-Preview-unsigned.ipa"
+
+if [[ "${PREVIEW_CAPTURE_SCREENSHOT:-0}" == 1 ]]; then
+  cd "$PREVIEW_APP"
+  flutter build ios --simulator --debug
+  PREVIEW_SIMULATOR="$(xcrun simctl list devices available --json | python3 -c '
+import json, sys
+all_devices = json.load(sys.stdin)["devices"]
+phones = [d for runtime, devices in all_devices.items() if "iOS" in runtime
+          for d in devices if d.get("isAvailable") and d["name"].startswith("iPhone")]
+if not phones:
+    raise SystemExit("No iPhone simulator runtime is installed")
+phones.sort(key=lambda d: (d.get("state") != "Booted", "Pro" not in d["name"], d["name"]))
+print(phones[0]["udid"])
+')"
+  xcrun simctl boot "$PREVIEW_SIMULATOR" || true
+  xcrun simctl bootstatus "$PREVIEW_SIMULATOR" -b
+  PREVIEW_SIM_APP="$PREVIEW_APP/build/ios/iphonesimulator/Runner.app"
+  PREVIEW_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PREVIEW_SIM_APP/Info.plist")"
+  xcrun simctl status_bar "$PREVIEW_SIMULATOR" override --time '9:41' --batteryState charged --batteryLevel 100
+  xcrun simctl install "$PREVIEW_SIMULATOR" "$PREVIEW_SIM_APP"
+  xcrun simctl launch "$PREVIEW_SIMULATOR" "$PREVIEW_BUNDLE_ID"
+  sleep 8
+  xcrun simctl io "$PREVIEW_SIMULATOR" screenshot "$PREVIEW_OUTPUT/discovery-preview.png"
+fi

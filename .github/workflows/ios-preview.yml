@@ -30,6 +30,8 @@ jobs:
           channel: stable
           cache: true
       - name: Build unsigned device IPA
+        env:
+          PREVIEW_CAPTURE_SCREENSHOT: "1"
         shell: bash
         run: |
           set -euo pipefail

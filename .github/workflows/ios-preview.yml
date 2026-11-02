@@ -1,0 +1,53 @@
+name: Build iOS UI preview
+
+on:
+  push:
+    branches: ['codex/ios-preview']
+    paths:
+      - 'preview/**'
+      - 'assets/branding/app-icon.png'
+      - '.github/workflows/ios-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: stable
+          cache: true
+      - name: Build unsigned device IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/preview-output"
+          bash preview/tool/build_ios.sh "$RUNNER_TEMP/preview-output" 2>&1 | tee "$RUNNER_TEMP/preview-build.txt"
+          printf '%s\n' "Source commit: $GITHUB_SHA" >> "$RUNNER_TEMP/preview-output/INSTALL.txt"
+      - name: Upload preview IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wenku8-Preview-unsigned
+          path: ${{ runner.temp }}/preview-output/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-preview-build-log
+          path: ${{ runner.temp }}/preview-build.txt
+          if-no-files-found: ignore
+          retention-days: 7

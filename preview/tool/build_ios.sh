@@ -54,6 +54,32 @@ flutter pub get
 # Format the staged copy, keeping the submitted source untouched.
 dart format lib
 flutter analyze --fatal-infos
+
+if [[ "${PREVIEW_SCREENSHOT_ONLY:-0}" == 1 ]]; then
+  cd "$PREVIEW_APP"
+  flutter build ios --simulator --debug
+  PREVIEW_SIMULATOR="$(xcrun simctl list devices available --json | python3 -c '
+import json, sys
+all_devices = json.load(sys.stdin)["devices"]
+phones = [d for runtime, devices in all_devices.items() if "iOS" in runtime
+          for d in devices if d.get("isAvailable") and d["name"].startswith("iPhone")]
+if not phones:
+    raise SystemExit("No iPhone simulator runtime is installed")
+phones.sort(key=lambda d: (d.get("state") != "Booted", "Pro" not in d["name"], d["name"]))
+print(phones[0]["udid"])
+')"
+  xcrun simctl boot "$PREVIEW_SIMULATOR" || true
+  xcrun simctl bootstatus "$PREVIEW_SIMULATOR" -b
+  PREVIEW_SIM_APP="$PREVIEW_APP/build/ios/iphonesimulator/Runner.app"
+  PREVIEW_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PREVIEW_SIM_APP/Info.plist")"
+  xcrun simctl status_bar "$PREVIEW_SIMULATOR" override --time '9:41' --batteryState charged --batteryLevel 100
+  xcrun simctl install "$PREVIEW_SIMULATOR" "$PREVIEW_SIM_APP"
+  xcrun simctl launch "$PREVIEW_SIMULATOR" "$PREVIEW_BUNDLE_ID"
+  sleep 8
+  xcrun simctl io "$PREVIEW_SIMULATOR" screenshot "$PREVIEW_OUTPUT/discovery-preview.png"
+  exit 0
+fi
+
 # Exercise the adapted render objects and the real preview navigation before
 # creating an installable artifact. These checks exist only in the temp host.
 mkdir -p test
@@ -98,8 +124,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('4 本'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('reference-search')));
-    await tester.pumpAndSettle();
+    // A focused Cupertino cursor can animate indefinitely. Bound the input
+    // frames, then unfocus before waiting for the rest of the UI to settle.
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.enterText(find.byType(EditableText), '夜航');
+    await tester.pump(const Duration(milliseconds: 400));
+    FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpAndSettle();
     expect(find.text('1 本'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -144,27 +174,3 @@ cd "$PREVIEW_OUTPUT"
 shasum -a 256 Wenku8-Preview-unsigned.ipa > SHA256SUMS.txt
 printf '%s\n' 'Unsigned UI preview. Sign with your own Apple identity before installing.' > INSTALL.txt
 printf '%s\n' "IPA: $PREVIEW_OUTPUT/Wenku8-Preview-unsigned.ipa"
-
-if [[ "${PREVIEW_CAPTURE_SCREENSHOT:-0}" == 1 ]]; then
-  cd "$PREVIEW_APP"
-  flutter build ios --simulator --debug
-  PREVIEW_SIMULATOR="$(xcrun simctl list devices available --json | python3 -c '
-import json, sys
-all_devices = json.load(sys.stdin)["devices"]
-phones = [d for runtime, devices in all_devices.items() if "iOS" in runtime
-          for d in devices if d.get("isAvailable") and d["name"].startswith("iPhone")]
-if not phones:
-    raise SystemExit("No iPhone simulator runtime is installed")
-phones.sort(key=lambda d: (d.get("state") != "Booted", "Pro" not in d["name"], d["name"]))
-print(phones[0]["udid"])
-')"
-  xcrun simctl boot "$PREVIEW_SIMULATOR" || true
-  xcrun simctl bootstatus "$PREVIEW_SIMULATOR" -b
-  PREVIEW_SIM_APP="$PREVIEW_APP/build/ios/iphonesimulator/Runner.app"
-  PREVIEW_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PREVIEW_SIM_APP/Info.plist")"
-  xcrun simctl status_bar "$PREVIEW_SIMULATOR" override --time '9:41' --batteryState charged --batteryLevel 100
-  xcrun simctl install "$PREVIEW_SIMULATOR" "$PREVIEW_SIM_APP"
-  xcrun simctl launch "$PREVIEW_SIMULATOR" "$PREVIEW_BUNDLE_ID"
-  sleep 8
-  xcrun simctl io "$PREVIEW_SIMULATOR" screenshot "$PREVIEW_OUTPUT/discovery-preview.png"
-fi

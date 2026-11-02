@@ -30,8 +30,6 @@ jobs:
           channel: stable
           cache: true
       - name: Build unsigned device IPA
-        env:
-          PREVIEW_CAPTURE_SCREENSHOT: "1"
         shell: bash
         run: |
           set -euo pipefail
@@ -45,11 +43,30 @@ jobs:
           path: ${{ runner.temp }}/preview-output/
           if-no-files-found: error
           retention-days: 14
+      - name: Capture iPhone preview
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          PREVIEW_SCREENSHOT_ONLY: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash preview/tool/build_ios.sh "$RUNNER_TEMP/preview-screen" 2>&1 | tee "$RUNNER_TEMP/preview-simulator.txt"
+      - name: Upload iPhone screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-preview-screenshot
+          path: ${{ runner.temp }}/preview-screen/discovery-preview.png
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ios-preview-build-log
-          path: ${{ runner.temp }}/preview-build.txt
+          path: |
+            ${{ runner.temp }}/preview-build.txt
+            ${{ runner.temp }}/preview-simulator.txt
           if-no-files-found: ignore
           retention-days: 7

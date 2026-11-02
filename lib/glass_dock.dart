@@ -373,8 +373,8 @@ class _GlassDockState extends State<GlassDock> with TickerProviderStateMixin {
           offset: Offset(flow * .16, -pressure * .6),
           child: Transform.scale(
             key: const ValueKey('dock-whole-capsule-transform'),
-            scaleX: 1 + pressure * .022 + flow.abs() * .00125,
-            scaleY: 1 + pressure * .065 - flow.abs() * .0006,
+            scaleX: 1 + pressure * .015 + flow.abs() * .001,
+            scaleY: 1 + pressure * .035 - flow.abs() * .0004,
             child: Stack(
               clipBehavior: Clip.none,
               children: [

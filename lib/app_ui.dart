@@ -152,7 +152,7 @@ ThemeData novelTheme(
       primaryContrastingColor: scheme.onPrimary,
       scaffoldBackgroundColor: scheme.surface,
     ),
-    splashFactory: InkRipple.splashFactory,
+    splashFactory: NoSplash.splashFactory,
     textTheme: ThemeData(brightness: brightness).textTheme.apply(
       fontFamily: fontFamily,
       bodyColor: scheme.onSurface,
@@ -1397,7 +1397,7 @@ class _ContentPanelState extends State<ContentPanel> {
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return AnimatedScale(
-      scale: _pressed && !reduceMotion ? .975 : 1,
+      scale: _pressed && !reduceMotion ? .985 : 1,
       duration: reduceMotion
           ? Duration.zero
           : _pressed

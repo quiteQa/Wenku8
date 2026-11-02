@@ -93,12 +93,19 @@ void main() {
   testWidgets('archive shelf and all four navigation destinations render', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 59, bottom: 34);
+    tester.view.viewPadding = const FakeViewPadding(top: 59, bottom: 34);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const WenkuPreview());
     await tester.pumpAndSettle();
     expect(find.text('轻小说文库'), findsOneWidget);
     expect(find.byType(ArchivePreviewShelf), findsOneWidget);
+    final counterBottom = tester.getRect(find.byKey(const ValueKey('archive-page-counter'))).bottom;
+    final dockTop = tester.getRect(find.byType(ArchiveDock)).top;
+    expect(counterBottom, lessThan(dockTop - 6));
     expect(tester.takeException(), isNull);
     final shelf = find.descendant(of: find.byType(ArchivePreviewShelf), matching: find.byType(Scrollable));
     await tester.drag(shelf.first, const Offset(-100, 0));

@@ -24,7 +24,8 @@ class ShelfBook {
 }
 class ArchivePreviewShelf extends StatefulWidget {
   const ArchivePreviewShelf({super.key, required this.books,
-    required this.onOpen, required this.coverBuilder});
+    required this.onOpen, required this.coverBuilder, this.sceneHeight});
+  final double? sceneHeight;
   final List<ShelfBook> books;
   final ValueChanged<int> onOpen;
   final Widget Function(int, double, bool) coverBuilder;
@@ -104,7 +105,22 @@ class _ArchivePreviewShelfState extends State<ArchivePreviewShelf> {
         child: LayoutBuilder(builder: (context, constraints) {
           final width = constraints.maxWidth;
           final spine = ArchiveShelfGeometry.spineFor(width);
-          final cover = ArchiveShelfGeometry.coverFor(width) * .90;
+          var cover = ArchiveShelfGeometry.coverFor(width) * .90;
+          final budget = widget.sceneHeight;
+          if (budget != null && ArchiveShelfGeometry.rowHeight(cover,
+              ArchiveShelfGeometry.bodyHeight(cover)) > budget) {
+            var low = 86.0, high = cover;
+            for (var i = 0; i < 12; i++) {
+              final candidate = (low + high) / 2;
+              if (ArchiveShelfGeometry.rowHeight(candidate,
+                  ArchiveShelfGeometry.bodyHeight(candidate)) > budget) {
+                high = candidate;
+              } else {
+                low = candidate;
+              }
+            }
+            cover = low;
+          }
           final height = ArchiveShelfGeometry.bodyHeight(cover);
           pose.configure(width, ArchiveShelfGeometry.pitchFor(width));
           return SizedBox(height: ArchiveShelfGeometry.rowHeight(cover, height),
@@ -180,7 +196,7 @@ class _ArchivePreviewShelfState extends State<ArchivePreviewShelf> {
         )),
       Padding(padding: const EdgeInsets.only(right: 20, top: 12),
         child: Align(alignment: Alignment.centerRight,
-          child: ReferenceGlass(radius: 23, child: Row(mainAxisSize: MainAxisSize.min, children: [
+          child: ReferenceGlass(key: const ValueKey('archive-page-counter'), radius: 23, child: Row(mainAxisSize: MainAxisSize.min, children: [
             CupertinoButton(padding: EdgeInsets.zero,
               onPressed: widget.books.length > 1 ? () => centre(pose.logicalFocus.round() - 1) : null,
               child: Icon(CupertinoIcons.chevron_left, color: ink, size: 14)),

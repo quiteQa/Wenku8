@@ -281,7 +281,7 @@ class _HomePageState extends State<HomePage> {
           ))],
         ),
       )),
-      Positioned(left: 20, right: 20, bottom: bottom + 12,
+      Positioned(left: 20, right: 20, bottom: bottom,
         child: Row(children: [
           Expanded(child: ArchiveDock(selected: tab, onSelected: (value) => setState(() => tab = value))),
           const SizedBox(width: 10),
@@ -326,6 +326,7 @@ class _HomePageState extends State<HomePage> {
   Widget collection(List<DemoBook> items, String origin) => Column(children: [
     if ((presentation < 2 || presentation == 4) && items.isNotEmpty) ArchivePreviewShelf(
       key: ValueKey('$origin-${items.map((b) => b.id).join('-')}'),
+      sceneHeight: (MediaQuery.sizeOf(context).height - MediaQuery.paddingOf(context).vertical - 378).clamp(340.0, 440.0),
       books: [for (final book in items) ShelfBook(book.title, book.author, 'WK-${(book.id + 1).toString().padLeft(5, '0')}')],
       onOpen: (index) => open(items[index], '$origin-archive-${items[index].id}'),
       coverBuilder: (index, width, selected) => BookCover(items[index], width: width,

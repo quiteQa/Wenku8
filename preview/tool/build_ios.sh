@@ -103,6 +103,7 @@ void main() {
     await tester.tap(find.text('风经过的地方').first);
     await tester.pumpAndSettle();
     expect(find.byType(DetailPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await tester.tap(find.text('开始阅读'));
     await tester.pumpAndSettle();
     expect(find.byType(ReaderPage), findsOneWidget);

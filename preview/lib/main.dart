@@ -186,7 +186,14 @@ class BookCover extends StatelessWidget {
         ),
       ),
     );
-    return tag == null ? cover : Hero(tag: tag!, child: cover);
+    return tag == null ? cover : Hero(
+      tag: tag!,
+      // Scale a retained book face during flight. Reflowing the large
+      // destination typography inside the small source rect causes overflow.
+      flightShuttleBuilder: (context, animation, direction, from, to) =>
+          FittedBox(fit: BoxFit.fill, child: cover),
+      child: cover,
+    );
   }
 }
 

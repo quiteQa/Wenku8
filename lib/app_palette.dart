@@ -130,8 +130,7 @@ class SystemTonalColors {
   }
 }
 
-/// A small, interpolated set of archive/glass colors. Classic values reproduce
-/// the old material exactly; no additional blur layer or idle animation.
+/// Interpolated surface and control colors, shared by all glass materials.
 @immutable
 class AppTonalColors extends ThemeExtension<AppTonalColors> {
   const AppTonalColors({
@@ -171,7 +170,7 @@ class AppTonalColors extends ThemeExtension<AppTonalColors> {
           ? ArchiveDesign.darkSurface
           : s.surfaceContainerLow,
       active: original
-          ? Color.lerp(s.onSurface, s.surface, dark ? .46 : .48)!
+          ? s.primary
           : dark
           ? Color.lerp(s.surface, s.primary, .62)!
           : s.primary,
@@ -183,7 +182,7 @@ class AppTonalColors extends ThemeExtension<AppTonalColors> {
           : dark
           ? s.onSurface
           : s.surfaceContainerLowest,
-      action: original ? s.onSurface : s.primary,
+      action: s.primary,
     );
   }
   Color tint(Brightness brightness, double opacity) =>

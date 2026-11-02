@@ -373,8 +373,8 @@ class _GlassDockState extends State<GlassDock> with TickerProviderStateMixin {
           offset: Offset(flow * .16, -pressure * .6),
           child: Transform.scale(
             key: const ValueKey('dock-whole-capsule-transform'),
-            scaleX: 1 + pressure * .022 + flow.abs() * .00125,
-            scaleY: 1 + pressure * .065 - flow.abs() * .0006,
+            scaleX: 1 + pressure * .008 + flow.abs() * .0005,
+            scaleY: 1 + pressure * .018 - flow.abs() * .0002,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -574,7 +574,7 @@ class _GlassDockState extends State<GlassDock> with TickerProviderStateMixin {
                       width: 12,
                       height: 1.5,
                       child: ColoredBox(
-                        color: scheme.onSurface.withValues(alpha: proximity),
+                        color: scheme.primary.withValues(alpha: proximity),
                       ),
                     ),
                   ),

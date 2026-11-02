@@ -26,8 +26,8 @@ class ArchiveMotionScope extends InheritedWidget {
 
 enum ArchiveRevealAxis { horizontal, vertical }
 
-/// Crisp terminal assembly: the rule opens first, followed by its address and
-/// heading. The material behind it is not faded, filtered or re-laid out.
+/// Labels arrive with a short fade and gentle rise on the shared batch clock.
+/// No extra controller is allocated and reduced motion leaves content static.
 class ArchivePart extends StatelessWidget {
   const ArchivePart({
     super.key,
@@ -53,13 +53,17 @@ class ArchivePart extends StatelessWidget {
         MediaQuery.disableAnimationsOf(context)) {
       return child;
     }
-    return ArchiveReveal(
-      animation: scope.animation,
-      start: start,
-      end: end,
-      axis: axis,
-      travel: travel,
-      child: child,
+    final progress = scope.animation.drive(
+      CurveTween(curve: Interval(start, end, curve: Curves.easeOutCubic)),
+    );
+    return FadeTransition(
+      opacity: progress,
+      child: SlideTransition(
+        position: progress.drive(
+          Tween<Offset>(begin: const Offset(0, .04), end: Offset.zero),
+        ),
+        child: child,
+      ),
     );
   }
 }

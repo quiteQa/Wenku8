@@ -13,21 +13,21 @@ export 'archive_motion.dart';
 export 'loading_handoff.dart';
 
 /// One motion vocabulary for controls, menus, sheets and in-place expansion.
-/// The paper flight/reveal are choreographed sequences, not repeating effects.
+/// Brief, finite transitions preserve direct manipulation without idle effects.
 abstract final class NovelMotion {
-  static const contact = Duration(milliseconds: 120);
-  static const enter = Duration(milliseconds: 420);
-  static const exit = Duration(milliseconds: 320);
-  static const coverFlight = Duration(milliseconds: 1000);
-  static const coverReturn = Duration(milliseconds: 840);
+  static const contact = Duration(milliseconds: 100);
+  static const enter = Duration(milliseconds: 360);
+  static const exit = Duration(milliseconds: 280);
+  static const coverFlight = Duration(milliseconds: 620);
+  static const coverReturn = Duration(milliseconds: 480);
   static const reveal = enter;
   static const ease = Curves.easeOutCubic;
   static const retract = Curves.easeInCubic;
-  static const settle = Cubic(.2, 1.08, .34, 1);
+  static const settle = Cubic(.22, 1, .36, 1);
   static const spring = SpringDescription(
-    mass: .64,
-    stiffness: 270,
-    damping: 19,
+    mass: 1,
+    stiffness: 420,
+    damping: 38,
   );
 
   static double jelly(double t) =>

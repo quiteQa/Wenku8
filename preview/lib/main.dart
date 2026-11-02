@@ -273,7 +273,7 @@ class _HomePageState extends State<HomePage> {
           child: SlideTransition(position: Tween<Offset>(begin: const Offset(0, .012), end: Offset.zero).animate(animation), child: child)),
         child: CustomScrollView(key: ValueKey(tab), physics: const BouncingScrollPhysics(),
           slivers: [SliverSafeArea(bottom: false, sliver: SliverPadding(
-            padding: EdgeInsets.fromLTRB(0, 4, 0, bottom + 100),
+            padding: EdgeInsets.fromLTRB(0, 0, 0, bottom + 100),
             sliver: SliverToBoxAdapter(child: switch (tab) {
               0 => discover(context), 1 => shelf(context),
               2 => local(context), _ => settings(context),
@@ -310,7 +310,7 @@ class _HomePageState extends State<HomePage> {
     ]),
   );
   Widget section(String title, String code, {Widget? trailing}) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+    padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
     child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Text(code, style: TextStyle(fontSize: 9, color: muted(context), letterSpacing: 1)),
@@ -332,7 +332,7 @@ class _HomePageState extends State<HomePage> {
         tag: selected ? '$origin-archive-${items[index].id}' : null),
     ),
     if (presentation == 1 || presentation == 3)
-      Padding(padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+      Padding(padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
         child: LayoutBuilder(builder: (context, constraints) {
           final width = (constraints.maxWidth - 32) / 3;
           return Wrap(spacing: 16, runSpacing: 20, children: [for (final book in items)
@@ -386,7 +386,7 @@ class _HomePageState extends State<HomePage> {
           setState(() => genre = label); Navigator.pop(sheetContext);
         }, child: Text(label))],
       cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(sheetContext), child: const Text('取消'))));
-  Widget toolbar(int count) => Padding(padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+  Widget toolbar(int count) => Padding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
     child: Row(children: [
       Expanded(child: Press(key: const ValueKey('region-options'), onTap: chooseCategory,
         child: ReferenceGlass(radius: 26, emphasized: true, padding: const EdgeInsets.symmetric(horizontal: 12),

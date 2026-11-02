@@ -104,7 +104,7 @@ class _ArchivePreviewShelfState extends State<ArchivePreviewShelf> {
         child: LayoutBuilder(builder: (context, constraints) {
           final width = constraints.maxWidth;
           final spine = ArchiveShelfGeometry.spineFor(width);
-          final cover = ArchiveShelfGeometry.coverFor(width);
+          final cover = ArchiveShelfGeometry.coverFor(width) * .90;
           final height = ArchiveShelfGeometry.bodyHeight(cover);
           pose.configure(width, ArchiveShelfGeometry.pitchFor(width));
           return SizedBox(height: ArchiveShelfGeometry.rowHeight(cover, height),
@@ -125,10 +125,10 @@ class _ArchivePreviewShelfState extends State<ArchivePreviewShelf> {
                         child: Container(color: spineFill,
                           padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 9),
                           child: MediaQuery.withNoTextScaling(child: Column(children: [
-                            FittedBox(child: Text((pose.bookIndex(slot) + 1).toString().padLeft(2, '0'),
+                            FittedBox(fit: BoxFit.scaleDown, child: Text((pose.bookIndex(slot) + 1).toString().padLeft(2, '0'),
                               style: TextStyle(fontSize: 8, color: ink))),
                             const SizedBox(height: 10),
-                            Expanded(child: Center(child: FittedBox(child: Text(
+                            Expanded(child: Center(child: FittedBox(fit: BoxFit.scaleDown, child: Text(
                               widget.books[pose.bookIndex(slot)].title.characters.join('\n'),
                               textAlign: TextAlign.center,
                               style: TextStyle(fontSize: 9, height: 1.08, fontWeight: FontWeight.w600, color: ink),
@@ -146,10 +146,10 @@ class _ArchivePreviewShelfState extends State<ArchivePreviewShelf> {
                               textScaler: TextScaler.noScaling,
                               style: TextStyle(fontSize: 8, letterSpacing: .6, color: ink)),
                             const SizedBox(height: 7),
-                            Expanded(child: FittedBox(child: widget.coverBuilder(
+                            Expanded(child: FittedBox(fit: BoxFit.scaleDown, child: widget.coverBuilder(
                               pose.bookIndex(slot), cover - 20, slot == pose.focus.round()))),
                             const SizedBox(height: 5),
-                            FittedBox(alignment: Alignment.centerLeft, child: Text(
+                            FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(
                               widget.books[pose.bookIndex(slot)].code,
                               textScaler: TextScaler.noScaling,
                               style: TextStyle(fontSize: 8, letterSpacing: .5, color: ink))),
@@ -226,7 +226,7 @@ class _WavePose extends ChangeNotifier {
   void configure(double width, double nextPitch) {
     if (viewport == width && pitch == nextPitch) return;
     viewport = width; pitch = nextPitch;
-    final cover = ArchiveShelfGeometry.coverFor(width);
+    final cover = ArchiveShelfGeometry.coverFor(width) * .90;
     edgeSlots = ((width / 2 + footprint(ArchiveShelfGeometry.spineFor(width), cover)
       + pullDistance(cover) * depthX) / pitch).ceil() + 2;
     revision++;

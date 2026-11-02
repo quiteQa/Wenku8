@@ -89,7 +89,7 @@ class PrismaticBackdrop extends CustomPainter {
     // They are static paint strokes; controls supply their own bounded blur.
     final rainbow = LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
       colors: dark ? const [Color(0x003D5E83), Color(0x144C72BD), Color(0x12796B89), Color(0x005E6B83)]
-        : const [Color(0x00FFFFFF), Color(0x28B8D3FF), Color(0x30FFFFFF), Color(0x26F3D8D1), Color(0x22F7EDC5), Color(0x00FFFFFF)],
+        : const [Color(0x00FFFFFF), Color(0x40B8D3FF), Color(0x30FFFFFF), Color(0x3AF3D8D1), Color(0x36F7EDC5), Color(0x00FFFFFF)],
     ).createShader(rect);
     final ribbon = Paint()..shader = rainbow..style = PaintingStyle.stroke
       ..strokeWidth = size.width * .085..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);

@@ -29,6 +29,13 @@ jobs:
           flutter-version: '3.41.5'
           channel: stable
           cache: true
+      - name: Warm iPhone simulator
+        continue-on-error: true
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          PREVIEW_PHONE=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=[x for k,v in json.load(sys.stdin)["devices"].items() if "iOS" in k for x in v if x.get("isAvailable") and x["name"].startswith("iPhone")]; d.sort(key=lambda x:(x.get("state")!="Booted", "Pro" not in x["name"], x["name"])); print(d[0]["udid"])')
+          xcrun simctl boot "$PREVIEW_PHONE" || true
       - name: Build unsigned device IPA
         shell: bash
         run: |

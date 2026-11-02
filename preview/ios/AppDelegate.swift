@@ -50,7 +50,7 @@ private final class NativeGlassFactory: NSObject, FlutterPlatformViewFactory {
     let view = NativeGlassView(frame: frame, arguments: args as? [String: Any] ?? [:],
                                id: viewId, messenger: messenger)
     Self.createdCount += 1
-    #if DEBUG
+    #if WENKU_GLASS_VERIFICATION
     // A build-only receipt proves the screenshot used the real UIKit effect.
     // It contains no book content or user data and is absent in Release.
     let receipt: [String: Any] = [

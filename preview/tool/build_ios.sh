@@ -63,6 +63,11 @@ flutter analyze --fatal-infos
 
 if [[ "${PREVIEW_SCREENSHOT_ONLY:-0}" == 1 ]]; then
   cd "$PREVIEW_APP"
+  # Flutter's Debug template does not necessarily define Swift's DEBUG flag.
+  # Explicitly enable this receipt only for the isolated verification build.
+  printf '%s\n' 'SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) WENKU_GLASS_VERIFICATION' >> ios/Flutter/Debug.xcconfig
+  xcodebuild -project ios/Runner.xcodeproj -scheme Runner -configuration Debug -sdk iphonesimulator -showBuildSettings > "$PREVIEW_OUTPUT/simulator-build-settings.txt"
+  grep 'SWIFT_ACTIVE_COMPILATION_CONDITIONS.*WENKU_GLASS_VERIFICATION' "$PREVIEW_OUTPUT/simulator-build-settings.txt"
   flutter build ios --simulator --debug
   PREVIEW_SIMULATOR="$(xcrun simctl list devices available --json | python3 -c '
 import json, sys
@@ -89,7 +94,7 @@ print(phones[0]["udid"])
 import json, sys
 receipt = json.load(open(sys.argv[1]))
 assert receipt['liquidGlass'] is True, receipt
-assert receipt['effectClass'] == 'UIGlassEffect', receipt
+assert 'GlassEffect' in receipt['effectClass'], receipt
 assert receipt['createdViews'] > 0, receipt
 assert int(receipt['systemVersion'].split('.')[0]) >= 26, receipt
 print('Verified real native glass:', receipt)

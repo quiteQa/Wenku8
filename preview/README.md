@@ -8,7 +8,7 @@
 
 Flutter 继续管理文字、图标、点击、手势、无障碍和书架，不把书架改成另一个阅读器。原生视图只提供背景材质，禁止截获前景点击。深浅色及圆角通过独立通道同步。导航选择态使用低对比度标记，避免重复叠加两层玻璃。背景仅保留淡色纸张和细网格。
 
-布局和阅读流程的 widget 测试使用无 UIKit 环境下的平面背景，不能证明原生材质。原生验证另在 iOS 26 模拟器执行：实际创建玻璃视图后，Debug 应用输出仅含效果类型、系统版本和创建数量的校验记录；脚本要求 `effectClass == UIGlassEffect`、`liquidGlass == true` 且创建数量大于零，再保存真实截图。Release 中不写该记录。同时检查真机 Release 可执行文件引用 UIGlassEffect。
+布局和阅读流程的 widget 测试使用无 UIKit 环境下的平面背景，不能证明原生材质。原生验证另在 iOS 26 模拟器执行：实际创建玻璃视图后，显式启用 WENKU_GLASS_VERIFICATION 的 Debug 校验构建输出仅含效果类型、系统版本和创建数量的校验记录；脚本要求 实际效果通过 Swift 的 `is UIGlassEffect` 类型检查（`liquidGlass == true`） 且创建数量大于零，再保存真实截图。Release 中不写该记录。同时检查真机 Release 可执行文件引用 UIGlassEffect。
 
 ## 构建与交付
 

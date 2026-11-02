@@ -285,7 +285,7 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.all(5),
                 child: Row(children: [
                   nav(0, CupertinoIcons.compass, '发现'),
-                  nav(1, CupertinoIcons.books_vertical, '书架'),
+                  nav(1, CupertinoIcons.book, '书架'),
                   nav(2, CupertinoIcons.person_crop_circle, '我的'),
                 ]),
               ),

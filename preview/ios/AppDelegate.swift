@@ -62,7 +62,12 @@ private final class NativeGlassFactory: NSObject, FlutterPlatformViewFactory {
     ]
     if let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first,
        let data = try? JSONSerialization.data(withJSONObject: receipt, options: [.sortedKeys]) {
-      try? data.write(to: directory.appendingPathComponent("native-glass-verification.json"), options: .atomic)
+      do {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try data.write(to: directory.appendingPathComponent("native-glass-verification.json"), options: .atomic)
+      } catch {
+        NSLog("Native glass verification receipt could not be written")
+      }
     }
     #endif
     return view

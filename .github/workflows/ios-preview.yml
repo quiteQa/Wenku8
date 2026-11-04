@@ -1,0 +1,91 @@
+name: Build iOS UI preview
+
+on:
+  push:
+    branches: ['codex/ios-preview']
+    paths:
+      - 'preview/**'
+      - 'assets/branding/app-icon.png'
+      - '.github/workflows/ios-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select Xcode 26
+        shell: bash
+        run: |
+          PREVIEW_XCODE=$(python3 -c 'import pathlib,re; p=[x for x in pathlib.Path("/Applications").glob("Xcode_26*.app") if re.fullmatch(r"Xcode_26(?:[.][0-9]+)*[.]app",x.name)]; p.sort(key=lambda x:tuple(map(int,re.search(r"Xcode_(.*)[.]app",x.name)[1].split(".")))); assert p,"Xcode 26 is required"; print(p[-1])')
+          echo "DEVELOPER_DIR=$PREVIEW_XCODE/Contents/Developer" >> "$GITHUB_ENV"
+          DEVELOPER_DIR="$PREVIEW_XCODE/Contents/Developer" xcodebuild -version
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: stable
+          cache: true
+      - name: Warm iPhone simulator
+        continue-on-error: true
+        timeout-minutes: 4
+        shell: bash
+        run: |
+          PREVIEW_PHONE=$(python3 preview/tool/select_simulator.py)
+          echo "PREVIEW_SIMULATOR_UDID=$PREVIEW_PHONE" >> "$GITHUB_ENV"
+          xcrun simctl boot "$PREVIEW_PHONE" || true
+          python3 - "$PREVIEW_PHONE" <<'PYBOOT'
+          import subprocess, sys
+          subprocess.run(['xcrun', 'simctl', 'bootstatus', sys.argv[1], '-b'], check=True, timeout=180)
+          PYBOOT
+      - name: Build unsigned device IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/preview-output"
+          bash preview/tool/build_ios.sh "$RUNNER_TEMP/preview-output" 2>&1 | tee "$RUNNER_TEMP/preview-build.txt"
+          printf '%s\n' "Source commit: $GITHUB_SHA" >> "$RUNNER_TEMP/preview-output/INSTALL.txt"
+      - name: Upload preview IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wenku8-Preview-unsigned
+          path: ${{ runner.temp }}/preview-output/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Verify native glass on iOS 26
+        timeout-minutes: 15
+        env:
+          PREVIEW_SCREENSHOT_ONLY: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash preview/tool/build_ios.sh "$RUNNER_TEMP/preview-screen" 2>&1 | tee "$RUNNER_TEMP/preview-simulator.txt"
+      - name: Upload iPhone screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-preview-screenshot
+          path: |
+            ${{ runner.temp }}/preview-screen/*.png
+            ${{ runner.temp }}/preview-screen/*.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-preview-build-log
+          path: |
+            ${{ runner.temp }}/preview-build.txt
+            ${{ runner.temp }}/preview-simulator.txt
+          if-no-files-found: ignore
+          retention-days: 7

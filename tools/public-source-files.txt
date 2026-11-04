@@ -725,9 +725,11 @@ preview/ios/AppDelegate.swift
 preview/lib/archive_shelf_geometry.dart
 preview/lib/archive_shelf_preview.dart
 preview/lib/glass_material.dart
+preview/lib/glass_sheets.dart
 preview/lib/main.dart
 preview/pubspec.yaml
 preview/tool/build_ios.sh
+preview/tool/select_simulator.py
 pubspec.lock
 pubspec.yaml
 scripts/build_harmony.sh

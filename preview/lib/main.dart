@@ -1,4 +1,5 @@
 import 'glass_material.dart';
+import 'glass_sheets.dart';
 import 'archive_shelf_preview.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -7,6 +8,19 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NativeGlassSupport.initialize();
   runApp(const WenkuPreview());
+  if (NativeGlassSupport.captureScene.isNotEmpty) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future<void>.delayed(const Duration(seconds: 1));
+      if (NativeGlassSupport.captureScene == 'choices') {
+        await NativeGlassSupport.channel.invokeMethod<void>('showChoices', {
+          'title': '书库浏览方式', 'choices': ['立体书架', '立体书架 + 列表', '立体书架 + 宫格', '纯列表', '纯宫格'],
+          'selected': 0, 'dark': false,
+        });
+      } else if (NativeGlassSupport.captureScene == 'reading') {
+        await NativeGlassSupport.channel.invokeMethod<void>('showReadingSettings', {'fontSize': 19, 'sepia': false, 'dark': false});
+      }
+    });
+  }
 }
 
 class PreviewRoute<T> extends CupertinoPageRoute<T> {
@@ -96,7 +110,9 @@ class _WenkuPreviewState extends State<WenkuPreview> {
       ),
       child: child!,
     ),
-    home: HomePage(
+    home: NativeGlassSupport.captureScene == 'reading'
+      ? ReaderPage(book: books[0], initialPage: 0, onProgress: (_) {})
+      : HomePage(
       saved: saved, progress: progress, dark: dark, reduceMotion: reduceMotion,
       onDark: (value) => setState(() => dark = value),
       onMotion: (value) => setState(() => reduceMotion = value),
@@ -254,18 +270,19 @@ class _HomePageState extends State<HomePage> {
       onProgress: (page) => widget.onProgress(book.id, page),
     )),
   );
-  void choosePresentation() => showCupertinoModalPopup<void>(
-    context: context, builder: (sheetContext) => CupertinoActionSheet(
-      title: const Text('书库浏览方式'),
-      actions: [for (final entry in const ['立体书架 + 列表', '立体书架 + 宫格', '纯列表', '纯宫格'].indexed)
-        CupertinoActionSheetAction(onPressed: () {
-          setState(() => presentation = entry.$1);
-          Navigator.pop(sheetContext);
-        }, child: Text(entry.$2)),
-      ],
-      cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(sheetContext), child: const Text('取消')),
-    ),
-  );
+  Future<void> choosePresentation() async {
+    const modes = [4, 0, 1, 2, 3];
+    final selected = await showGlassChoices(context, title: '书库浏览方式',
+      choices: const ['立体书架', '立体书架 + 列表', '立体书架 + 宫格', '纯列表', '纯宫格'],
+      selected: modes.indexOf(presentation));
+    if (mounted && selected != null) setState(() => presentation = modes[selected]);
+  }
+  Future<void> editAppearance() async {
+    final value = await showGlassPreferences(context, dark: widget.dark, reduceMotion: widget.reduceMotion);
+    if (!mounted || value == null) return;
+    widget.onDark(value['dark'] == true);
+    widget.onMotion(value['reduceMotion'] == true);
+  }
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom;
@@ -377,20 +394,16 @@ class _HomePageState extends State<HomePage> {
       const SizedBox(height: 18),
     ],
   ]);
-  void chooseCategory() => showCupertinoModalPopup<void>(context: context,
-    builder: (sheetContext) => CupertinoActionSheet(title: const Text('浏览分类'),
-      actions: [for (final label in const ['最近更新', '最近阅读', '已收藏'])
-        CupertinoActionSheetAction(onPressed: () {
-          setState(() => category = label); Navigator.pop(sheetContext);
-        }, child: Text(label))],
-      cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(sheetContext), child: const Text('取消'))));
-  void chooseGenre() => showCupertinoModalPopup<void>(context: context,
-    builder: (sheetContext) => CupertinoActionSheet(title: const Text('题材筛选'),
-      actions: [for (final label in ['全部题材', ...books.map((b) => b.genre)])
-        CupertinoActionSheetAction(onPressed: () {
-          setState(() => genre = label); Navigator.pop(sheetContext);
-        }, child: Text(label))],
-      cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(sheetContext), child: const Text('取消'))));
+  Future<void> chooseCategory() async {
+    const choices = ['最近更新', '最近阅读', '已收藏'];
+    final selected = await showGlassChoices(context, title: '浏览分类', choices: choices, selected: choices.indexOf(category));
+    if (mounted && selected != null) setState(() => category = choices[selected]);
+  }
+  Future<void> chooseGenre() async {
+    final choices = ['全部题材', ...books.map((b) => b.genre)];
+    final selected = await showGlassChoices(context, title: '题材筛选', choices: choices, selected: choices.indexOf(genre));
+    if (mounted && selected != null) setState(() => genre = choices[selected]);
+  }
   Widget toolbar(int count) => Padding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
     child: Row(children: [
       Expanded(child: Press(key: const ValueKey('region-options'), onTap: chooseCategory,
@@ -462,14 +475,17 @@ class _HomePageState extends State<HomePage> {
   Widget settings(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     heading('我的', '04 / PERSONAL PROFILE'),
     section('外观与体验', '01 / APPEARANCE'),
-    Padding(padding: const EdgeInsets.fromLTRB(24, 20, 24, 0), child: Panel(child: Column(children: [
-      preference(context, CupertinoIcons.moon, '深色外观', widget.dark, widget.onDark),
-      const SizedBox(height: 20),
-      preference(context, CupertinoIcons.wind, '减少动态效果', widget.reduceMotion, widget.onMotion),
-    ]))),
+    Padding(padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: GlassAction(key: const ValueKey('appearance-settings'), onPressed: editAppearance,
+        child: Row(children: [const Icon(CupertinoIcons.slider_horizontal_3, size: 22), const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('外观设置', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 5), Text('深色外观 · 减少动态效果', style: TextStyle(fontSize: 12, color: muted(context))),
+          ])), const Icon(CupertinoIcons.chevron_right, size: 15),
+        ]))),
     section('关于这个预览', '02 / ABOUT'),
     Padding(padding: const EdgeInsets.fromLTRB(24, 20, 24, 0), child: Panel(child: Text(
-      '沿用原作的档案排版、立体抽取书架、奶白色纸张和四个导航入口。采用 Cupertino 控件、模糊玻璃、弹簧吸附和手势返回实现 Apple 风格的反馈与过渡。\n\n全部书籍和正文为原创演示内容；书架及位置仅在本次运行内保留，不提供在线书库、导入、同步和听书。',
+      '沿用原作的档案排版、立体抽取书架、奶白色纸张和四个导航入口。采用原生液态玻璃、系统弹出面板、弹簧吸附和手势返回。\n\n全部书籍和正文为原创演示内容；书架及位置仅在本次运行内保留，不提供在线书库、导入、同步和听书。',
       style: TextStyle(fontSize: 14, height: 1.7, color: muted(context))))),
   ]);
 }
@@ -561,11 +577,7 @@ class _DetailPageState extends State<DetailPage> {
   }
   @override
   Widget build(BuildContext context) => CupertinoPageScaffold(
-    navigationBar: CupertinoNavigationBar(
-      middle: const Text('书籍详情'), previousPageTitle: '返回',
-      backgroundColor: resolved(context, pageColor).withValues(alpha: .88),
-      border: null,
-    ),
+    navigationBar: const GlassNavigationBar(title: '书籍详情'),
     child: SafeArea(child: SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 26, 24, 36),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -575,12 +587,11 @@ class _DetailPageState extends State<DetailPage> {
         const SizedBox(height: 8),
         Center(child: Text('${widget.book.author} · ${widget.book.genre}', style: TextStyle(fontSize: 14, color: muted(context)))),
         const SizedBox(height: 26),
-        SizedBox(width: double.infinity, child: CupertinoButton.filled(
-          borderRadius: BorderRadius.circular(24), onPressed: () => read(),
+        SizedBox(width: double.infinity, child: GlassAction(onPressed: () => read(),
           child: const Text('开始阅读', style: TextStyle(fontWeight: FontWeight.w600)),
         )),
         const SizedBox(height: 10),
-        Center(child: CupertinoButton(onPressed: () {
+        Center(child: GlassAction(onPressed: () {
           widget.onSave(); setState(() => saved = !saved);
         }, child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(saved ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.plus_circle, size: 19),
@@ -634,16 +645,24 @@ class _ReaderPageState extends State<ReaderPage> {
       controller.animateToPage(index, duration: motion(context, 360), curve: Curves.easeOutCubic);
     }
   }
+  Future<void> editReading() async {
+    final value = await showGlassReadingSettings(context, fontSize: fontSize, sepia: sepia);
+    if (!mounted || value == null) return;
+    setState(() { fontSize = (value['fontSize'] as num).toDouble(); sepia = value['sepia'] == true; });
+  }
+  Future<void> chooseChapter() async {
+    final index = await showGlassChoices(context, title: '目录', choices: chapterTitles, selected: page);
+    if (mounted && index != null) go(index);
+  }
   @override
   Widget build(BuildContext context) {
     final paper = sepia ? const Color(0xFFF6EFDF) : resolved(context, panelColor);
     final textColor = sepia ? const Color(0xFF39342B) : ink(context);
     return CupertinoPageScaffold(
       backgroundColor: paper,
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(widget.book.title), previousPageTitle: '详情', border: null,
-        backgroundColor: paper.withValues(alpha: .92),
-      ),
+      navigationBar: GlassNavigationBar(title: widget.book.title,
+        trailing: CupertinoButton(key: const ValueKey('reading-settings-top'), onPressed: editReading,
+          padding: const EdgeInsets.symmetric(horizontal: 16), child: const Icon(CupertinoIcons.textformat_size, size: 22))),
       child: SafeArea(child: Column(children: [
         Expanded(child: PageView.builder(
           controller: controller, itemCount: passages.length,
@@ -661,28 +680,20 @@ class _ReaderPageState extends State<ReaderPage> {
             )),
           ),
         )),
-        Container(padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
-          color: paper,
-          child: Column(children: [
-            Row(children: [
+        Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+          child: ReferenceGlass(radius: 30, padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            child: Row(children: [
               CupertinoButton(onPressed: page > 0 ? () => go(page - 1) : null,
                 child: const Icon(CupertinoIcons.chevron_left, semanticLabel: '上一章', size: 18)),
-              Expanded(child: Text('第 ${page + 1} / ${passages.length} 章', textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: textColor))),
+              Expanded(child: CupertinoButton(key: const ValueKey('reader-catalogue'), onPressed: chooseChapter,
+                padding: EdgeInsets.zero,
+                child: Text('第 ${page + 1} / ${passages.length} 章', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13)))),
+              CupertinoButton(key: const ValueKey('reading-settings'), onPressed: editReading,
+                child: const Icon(CupertinoIcons.textformat_size, semanticLabel: '阅读设置', size: 20)),
               CupertinoButton(onPressed: page < passages.length - 1 ? () => go(page + 1) : null,
                 child: const Icon(CupertinoIcons.chevron_right, semanticLabel: '下一章', size: 18)),
-            ]),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              CupertinoButton(onPressed: fontSize > 16 ? () => setState(() => fontSize -= 1) : null,
-                child: const Text('A−', semanticsLabel: '减小字号')),
-              Text('${fontSize.round()}', style: TextStyle(fontSize: 13, color: textColor)),
-              CupertinoButton(onPressed: fontSize < 26 ? () => setState(() => fontSize += 1) : null,
-                child: const Text('A+', semanticsLabel: '增大字号')),
-              CupertinoButton(onPressed: () => setState(() => sepia = !sepia),
-                child: Text(sepia ? '默认纸色' : '暖色纸张', style: const TextStyle(fontSize: 13))),
-            ]),
-          ]),
-        ),
+            ]))),
+
       ])),
     );
   }

@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart' show PlatformViewHitTestBehavior;
 /// iOS surfaces come from UIKit, never a Dart shader, border or glow painter.
 abstract final class NativeGlassSupport {
   static const channel = MethodChannel('wenku8/native-glass');
+  static String captureScene = '';
   static bool available = false;
   static bool liquidGlass = false;
   static Future<void> initialize() async {
@@ -13,6 +14,7 @@ abstract final class NativeGlassSupport {
     try {
       final result = await channel.invokeMapMethod<String, dynamic>('capabilities');
       available = result?['native'] == true;
+      captureScene = result?['captureScene'] as String? ?? '';
       liquidGlass = result?['liquidGlass'] == true;
       debugPrint('WENKU_GLASS_BACKEND ${result?['backend']}');
     } on MissingPluginException {
@@ -91,7 +93,7 @@ class ArchiveBackdrop extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size,
-      Paint()..color = Color(dark ? 0xFF191919 : 0xFFF5F5F7));
+      Paint()..color = Color(dark ? 0xFF191919 : 0xFFF7F5F2));
     final grid = Paint()..color = Color(dark ? 0x08FFFFFF : 0x058A8E9C)..strokeWidth = .5;
     for (var x = 24.0; x < size.width; x += 48) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);

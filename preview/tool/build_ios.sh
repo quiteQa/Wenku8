@@ -69,36 +69,35 @@ if [[ "${PREVIEW_SCREENSHOT_ONLY:-0}" == 1 ]]; then
   xcodebuild -project ios/Runner.xcodeproj -scheme Runner -configuration Debug -sdk iphonesimulator -showBuildSettings > "$PREVIEW_OUTPUT/simulator-build-settings.txt"
   grep 'SWIFT_ACTIVE_COMPILATION_CONDITIONS.*WENKU_GLASS_VERIFICATION' "$PREVIEW_OUTPUT/simulator-build-settings.txt"
   flutter build ios --simulator --debug
-  PREVIEW_SIMULATOR="$(xcrun simctl list devices available --json | python3 -c '
-import json, sys
-all_devices = json.load(sys.stdin)["devices"]
-phones = [d for runtime, devices in all_devices.items() if "iOS-26" in runtime
-          for d in devices if d.get("isAvailable") and d["name"].startswith("iPhone")]
-if not phones:
-    raise SystemExit("No iOS 26 iPhone simulator runtime is installed")
-phones.sort(key=lambda d: (d.get("state") != "Booted", "Pro" not in d["name"], d["name"]))
-print(phones[0]["udid"])
-')"
+  PREVIEW_SIMULATOR="${PREVIEW_SIMULATOR_UDID:-$(python3 "$PREVIEW_SOURCE/tool/select_simulator.py")}"
   xcrun simctl boot "$PREVIEW_SIMULATOR" || true
-  xcrun simctl bootstatus "$PREVIEW_SIMULATOR" -b
+  python3 - "$PREVIEW_SIMULATOR" <<'PYBOOT'
+import subprocess, sys
+subprocess.run(['xcrun', 'simctl', 'bootstatus', sys.argv[1], '-b'], check=True, timeout=180)
+PYBOOT
   PREVIEW_SIM_APP="$PREVIEW_APP/build/ios/iphonesimulator/Runner.app"
   PREVIEW_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PREVIEW_SIM_APP/Info.plist")"
   xcrun simctl status_bar "$PREVIEW_SIMULATOR" override --time '9:41' --batteryState charged --batteryLevel 100
   xcrun simctl install "$PREVIEW_SIMULATOR" "$PREVIEW_SIM_APP"
-  xcrun simctl launch "$PREVIEW_SIMULATOR" "$PREVIEW_BUNDLE_ID"
-  sleep 8
-  xcrun simctl io "$PREVIEW_SIMULATOR" screenshot "$PREVIEW_OUTPUT/discovery-preview.png"
   PREVIEW_DATA="$(xcrun simctl get_app_container "$PREVIEW_SIMULATOR" "$PREVIEW_BUNDLE_ID" data)"
-  cp "$PREVIEW_DATA/Library/Caches/native-glass-verification.json" "$PREVIEW_OUTPUT/native-glass-verification.json"
-  python3 - "$PREVIEW_OUTPUT/native-glass-verification.json" <<'PYVERIFY'
+  for PREVIEW_SCENE in discovery choices reading; do
+    rm -f "$PREVIEW_DATA/Library/Caches/native-glass-verification.json"
+    xcrun simctl launch --terminate-running-process "$PREVIEW_SIMULATOR" "$PREVIEW_BUNDLE_ID" "--wenku-scene=$PREVIEW_SCENE"
+    sleep 10
+    xcrun simctl io "$PREVIEW_SIMULATOR" screenshot "$PREVIEW_OUTPUT/$PREVIEW_SCENE-preview.png"
+    cp "$PREVIEW_DATA/Library/Caches/native-glass-verification.json" "$PREVIEW_OUTPUT/native-glass-$PREVIEW_SCENE.json"
+    python3 - "$PREVIEW_OUTPUT/native-glass-$PREVIEW_SCENE.json" "$PREVIEW_SCENE" <<'PYVERIFY'
 import json, sys
 receipt = json.load(open(sys.argv[1]))
 assert receipt['liquidGlass'] is True, receipt
 assert 'GlassEffect' in receipt['effectClass'], receipt
 assert receipt['createdViews'] > 0, receipt
 assert int(receipt['systemVersion'].split('.')[0]) >= 26, receipt
+role = 'surface' if sys.argv[2] == 'discovery' else sys.argv[2]
+assert role in receipt['roles'], receipt
 print('Verified real native glass:', receipt)
 PYVERIFY
+  done
   exit 0
 fi
 
@@ -138,10 +137,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     }
+    await tester.tap(find.byKey(const ValueKey('appearance-settings')));
+    await tester.pumpAndSettle();
     // Both appearance changes preserve layout and reduced motion uses a flat shelf.
     await tester.tap(find.byType(CupertinoSwitch).first);
     await tester.pumpAndSettle();
     await tester.tap(find.byType(CupertinoSwitch).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('完成'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('发现').last);
     await tester.pumpAndSettle();
@@ -181,6 +184,29 @@ void main() {
     await tester.tap(find.byIcon(CupertinoIcons.chevron_right).last);
     await tester.pumpAndSettle();
     expect(find.text('第 2 / 3 章'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('reading-settings')));
+    await tester.pumpAndSettle();
+    final slider = tester.widget<CupertinoSlider>(find.byType(CupertinoSlider));
+    slider.onChanged!(24);
+    await tester.pump();
+    expect(find.text('字号 24'), findsOneWidget);
+    await tester.tap(find.text('暖色'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('完成'));
+    await tester.pumpAndSettle();
+    final body = tester.widget<Text>(find.text(passages[1]));
+    expect(body.style!.fontSize, 24);
+    expect(body.style!.color, const Color(0xFF39342B));
+    await tester.tap(find.byKey(const ValueKey('reader-catalogue')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(chapterTitles[2]).last);
+    await tester.pumpAndSettle();
+    expect(find.text('第 3 / 3 章'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('reader-catalogue')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+    expect(find.text('第 3 / 3 章'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

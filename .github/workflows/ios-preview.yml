@@ -37,11 +37,16 @@ jobs:
           cache: true
       - name: Warm iPhone simulator
         continue-on-error: true
-        timeout-minutes: 2
+        timeout-minutes: 4
         shell: bash
         run: |
-          PREVIEW_PHONE=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=[x for k,v in json.load(sys.stdin)["devices"].items() if "iOS-26" in k for x in v if x.get("isAvailable") and x["name"].startswith("iPhone")]; d.sort(key=lambda x:(x.get("state")!="Booted", "Pro" not in x["name"], x["name"])); print(d[0]["udid"])')
+          PREVIEW_PHONE=$(python3 preview/tool/select_simulator.py)
+          echo "PREVIEW_SIMULATOR_UDID=$PREVIEW_PHONE" >> "$GITHUB_ENV"
           xcrun simctl boot "$PREVIEW_PHONE" || true
+          python3 - "$PREVIEW_PHONE" <<'PYBOOT'
+          import subprocess, sys
+          subprocess.run(['xcrun', 'simctl', 'bootstatus', sys.argv[1], '-b'], check=True, timeout=180)
+          PYBOOT
       - name: Build unsigned device IPA
         shell: bash
         run: |
@@ -57,7 +62,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Verify native glass on iOS 26
-        timeout-minutes: 10
+        timeout-minutes: 15
         env:
           PREVIEW_SCREENSHOT_ONLY: "1"
         shell: bash
@@ -70,8 +75,8 @@ jobs:
         with:
           name: ios-preview-screenshot
           path: |
-            ${{ runner.temp }}/preview-screen/discovery-preview.png
-            ${{ runner.temp }}/preview-screen/native-glass-verification.json
+            ${{ runner.temp }}/preview-screen/*.png
+            ${{ runner.temp }}/preview-screen/*.json
           if-no-files-found: ignore
           retention-days: 14
       - name: Upload build log
